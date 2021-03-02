@@ -5,7 +5,7 @@ from pwn import *
 def start():
     global p
     global elf
-    prog  = "./usemedontabuseme"    
+    prog  = "./useme"    
 
     if args.REMOTE:
         ip   = "plsdonthaq.me"

@@ -1,0 +1,25 @@
+list_files: Line 116
+    There a possible race condition between writing ls "..." to list.txt and opening the file, it's possible that a person could open list.txt and write this back to the socket (a possible format string exploit?)
+
+handle_conn: Line 140
+    The admin_level that allows admin activities seems to be 0 (based on SET_PERMISSION_LEVEL and COMMAND), however this seems to be the default admin_level? I'm a bit confused, wouldn't all of the commands be executed as admin.
+
+handle_conn: Line 143
+    both log[] and action[] are of size MAX_LEN, with enough arguments pushed into the action you will truncate the string being copied.
+
+handle_conn: Line 146
+    syslog(LOG_INFO, log) is a possible format string, log is a string created with snprintf() and user input, so if action + 1 contained a format string, it could cause an exploit (possibly overriding admin_level which is pushed during the snprintf()).
+
+handle_conn: Line 167
+    admin_level is a uint8_t, while level is an int, if you passed in a value larger than 8 bytes it could be truncated when moving it into admin_level, but it will still pass the level != 0 test. (this would require overwriting using the above format string)
+
+handle_conn: Line 168
+    There's no break in the switch cases between SET_PERMISSION_LEVEL and COMMAND. You could use the above exploit to set your admin_level to 0 then immediately execute a command.
+
+Theres a number of unchecked return values leading from main -> handle_conn which would mean that an invalid socket or file descriptor could be passed into handle_conn without exiting.
+    main: Line 219
+        doesn't check that the socket returned from setup_networking isn't -1. It just passes it into run_server()
+    run_server: Line 210
+        doesn't check that the fd returned from accept() is valid (which it wouldn't be if socket == -1). It just passes it into handle_conn()
+    handle_conn(): Lines 137 & 139
+        never checks whether any bytes are written to/read from the socket. In this case action[] would be uninitialized leading to undefined behaviour. 

